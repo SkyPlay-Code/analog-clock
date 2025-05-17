@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insane Analog Clock</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --clock-bg: rgba(20, 20, 40, 0.5); /* Semi-transparent for glassmorphism */
+            --clock-border: rgba(128, 128, 255, 0.5);
+            --hand-hour-color: #e94560;
+            --hand-minute-color: #82aaff;
+            --hand-second-color: #00f5d4; /* Neon teal */
+            --center-dot-color: #00f5d4;
+            --marker-color: #c0c0ff;
+            --digital-text-color: #f0f0ff;
+            --date-text-color: #a0a0cc;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --glow-color-second: rgba(0, 245, 212, 0.7);
+            --glow-color-minute: rgba(130, 170, 255, 0.5);
+            --glow-color-hour: rgba(233, 69, 96, 0.5);
+            --theme-button-bg: #3a3a5e;
+            --theme-button-text: #e0e0ff;
+            --font-family: 'Orbitron', sans-serif; /* Sci-fi, modern font */
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap');
+
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(128,128,255,0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(0,245,212,0.3) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(233,69,96,0.1) 0%, transparent 40%);
+            font-family: 'Poppins', sans-serif;
+            color: var(--digital-text-color);
+            overflow: hidden;
+            transition: background-color 0.5s ease;
+        }
+
+        body.light-theme {
+            --bg-color: #e0e0f0;
+            --clock-bg: rgba(255, 255, 255, 0.6);
+            --clock-border: rgba(100, 100, 150, 0.4);
+            --hand-hour-color: #ff6b6b;
+            --hand-minute-color: #4dabf7;
+            --hand-second-color: #1dd1a1;
+            --center-dot-color: #1dd1a1;
+            --marker-color: #505070;
+            --digital-text-color: #333;
+            --date-text-color: #666;
+            --shadow-color: rgba(100, 100, 150, 0.2);
+            --glow-color-second: rgba(29, 209, 161, 0.7);
+            --glow-color-minute: rgba(77, 171, 247, 0.5);
+            --glow-color-hour: rgba(255, 107, 107, 0.5);
+            --theme-button-bg: #c0c0e0;
+            --theme-button-text: #303050;
+        }
+
+        .clock-container {
+            position: relative;
+            perspective: 1000px;
+        }
+
+        .clock {
+            width: 320px;
+            height: 320px;
+            background: var(--clock-bg);
+            border-radius: 50%;
+            border: 5px solid var(--clock-border);
+            box-shadow:
+                0 0 15px var(--shadow-color),
+                0 0 30px var(--clock-border),
+                inset 0 0 20px rgba(0,0,0,0.2);
+            position: relative;
+            backdrop-filter: blur(15px) saturate(180%);
+            -webkit-backdrop-filter: blur(15px) saturate(180%);
+            transition: all 0.5s ease; /* Keep 'all' for smooth transitions between JS and CSS transforms */
+            transform-style: preserve-3d;
+        }
+
+        .clock:hover {
+            transform: scale(1.05) rotateX(7deg) rotateY(-7deg); /* Slightly increased hover tilt */
+            box-shadow:
+                0 0 25px var(--shadow-color),
+                0 0 50px var(--clock-border),
+                inset 0 0 30px rgba(0,0,0,0.3);
+        }
+
+        .clock-face {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hand {
+            width: 50%;
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform-origin: 100%;
+            transform: rotate(90deg);
+            transition: transform 0.08s cubic-bezier(0.4, 2.3, 0.6, 1);
+            border-radius: 6px;
+        }
+
+        .hour-hand {
+            height: 8px;
+            background: var(--hand-hour-color);
+            width: 35%;
+            left: 15%;
+            z-index: 3;
+            box-shadow: 0 0 10px var(--glow-color-hour);
+        }
+
+        .minute-hand {
+            height: 6px;
+            background: var(--hand-minute-color);
+            width: 45%;
+            left: 5%;
+            z-index: 4;
+            box-shadow: 0 0 12px var(--glow-color-minute);
+        }
+
+        .second-hand {
+            height: 3px;
+            background: var(--hand-second-color);
+            width: 48%;
+            left: 2%;
+            z-index: 5;
+            box-shadow: 0 0 15px var(--glow-color-second);
+        }
+
+        .center-dot {
+            width: 18px;
+            height: 18px;
+            background: var(--center-dot-color);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 6;
+            box-shadow: 0 0 10px var(--glow-color-second);
+            border: 2px solid var(--bg-color);
+        }
+
+        /* --- REVISED MARKER STYLES --- */
+        .hour-marker { /* This is the container for all number divs */
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        .hour-marker div { /* Each individual number */
+            position: absolute;
+            width: 24px;  /* Slightly larger for better presence */
+            height: 24px;
+            line-height: 24px; /* Match height */
+            text-align: center;
+            font-family: var(--font-family);
+            font-weight: bold;
+            font-size: 16px; /* Base size, will be overridden for 3,6,9,12 */
+            color: var(--marker-color);
+            text-shadow: 0 0 5px var(--glow-color-minute);
+
+            /* Position numbers at the center of the clock initially */
+            top: 50%;
+            left: 50%;
+            margin-top: -12px;  /* Half of height (24px / 2) */
+            margin-left: -12px; /* Half of width (24px / 2) */
+            /* transform-origin: center center; is default, not needed explicitly */
+        }
+        
+        /*
+        Positioning logic for numbers:
+        1. rotate(DEG): Rotates the coordinate system. DEG is the hour's angle.
+        2. translateY(-RADIUS_PX): Moves the number outwards along the new Y-axis.
+           Clock radius is 160px. We want numbers near the edge.
+           Let's use 135px for the number's center radius. This leaves
+           160px (clock radius) - 135px (number center) = 25px from number center to clock edge.
+           With number height 24px (12px from center to edge), this is 25-12 = 13px gap.
+        3. rotate(-DEG): Rotates the number back so the text is upright.
+        */
+        .hour-marker div:nth-child(1) { transform: rotate(30deg) translateY(-135px) rotate(-30deg); }
+        .hour-marker div:nth-child(2) { transform: rotate(60deg) translateY(-135px) rotate(-60deg); }
+        .hour-marker div:nth-child(3) { transform: rotate(90deg) translateY(-135px) rotate(-90deg); font-size:20px; }
+        .hour-marker div:nth-child(4) { transform: rotate(120deg) translateY(-135px) rotate(-120deg); }
+        .hour-marker div:nth-child(5) { transform: rotate(150deg) translateY(-135px) rotate(-150deg); }
+        .hour-marker div:nth-child(6) { transform: rotate(180deg) translateY(-135px) rotate(-180deg); font-size:20px; }
+        .hour-marker div:nth-child(7) { transform: rotate(210deg) translateY(-135px) rotate(-210deg); }
+        .hour-marker div:nth-child(8) { transform: rotate(240deg) translateY(-135px) rotate(-240deg); }
+        .hour-marker div:nth-child(9) { transform: rotate(270deg) translateY(-135px) rotate(-270deg); font-size:20px; }
+        .hour-marker div:nth-child(10) { transform: rotate(300deg) translateY(-135px) rotate(-300deg); }
+        .hour-marker div:nth-child(11) { transform: rotate(330deg) translateY(-135px) rotate(-330deg); }
+        .hour-marker div:nth-child(12) { transform: rotate(0deg) translateY(-135px) rotate(0deg); font-size:20px; } /* 12 is at 0deg */
+
+
+        .digital-info {
+            margin-top: 40px;
+            text-align: center;
+            text-shadow: 0 0 10px var(--glow-color-minute);
+        }
+
+        .digital-time {
+            font-size: 3em;
+            font-family: var(--font-family);
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--digital-text-color);
+        }
+
+        .date-display {
+            font-size: 1.2em;
+            font-family: 'Poppins', sans-serif;
+            color: var(--date-text-color);
+            margin-top: 5px;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background-color: var(--theme-button-bg);
+            color: var(--theme-button-text);
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            box-shadow: 0 2px 10px var(--shadow-color);
+            transition: all 0.3s ease;
+            z-index: 100; /* Ensure it's above other elements */
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px var(--shadow-color);
+        }
+
+        .theme-toggle:active {
+            transform: translateY(0px);
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.5; }
+        }
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            z-index: -1;
+            animation: pulse-glow 10s infinite alternate;
+        }
+        body::before {
+            background: radial-gradient(circle, var(--hand-second-color) 0%, transparent 70%);
+            top: 5%; left: 5%;
+            opacity: 0.3;
+        }
+        body::after {
+            background: radial-gradient(circle, var(--hand-hour-color) 0%, transparent 70%);
+            bottom: 5%; right: 5%;
+            opacity: 0.3;
+            animation-delay: -5s;
+        }
+
+    </style>
+</head>
+<body>
+
+    <button id="themeToggle" class="theme-toggle">Toggle Theme</button>
+
+    <div class="clock-container">
+        <div class="clock">
+            <div class="clock-face">
+                <div class="hour-marker">
+                    <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
+                    <div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div>
+                </div>
+                <div class="hand hour-hand" id="hourHand"></div>
+                <div class="hand minute-hand" id="minuteHand"></div>
+                <div class="hand second-hand" id="secondHand"></div>
+                <div class="center-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="digital-info">
+        <div class="digital-time" id="digitalTime"></div>
+        <div class="date-display" id="dateDisplay"></div>
+    </div>
+
+    <script>
+        const hourHand = document.getElementById('hourHand');
+        const minuteHand = document.getElementById('minuteHand');
+        const secondHand = document.getElementById('secondHand');
+        const digitalTimeDisplay = document.getElementById('digitalTime');
+        const dateDisplay = document.getElementById('dateDisplay');
+        const themeToggleButton = document.getElementById('themeToggle');
+        const clockElement = document.querySelector('.clock'); // Get clock element for parallax
+
+        function setClock() {
+            const now = new Date();
+
+            const seconds = now.getSeconds();
+            const minutes = now.getMinutes();
+            const hours = now.getHours();
+
+            const secondsDegrees = ((seconds / 60) * 360) + 90;
+            const minutesDegrees = ((minutes / 60) * 360) + ((seconds / 60) * 6) + 90;
+            const hoursDegrees = ((hours / 12) * 360) + ((minutes / 60) * 30) + 90;
+
+            secondHand.style.transform = `rotate(${secondsDegrees}deg)`;
+            minuteHand.style.transform = `rotate(${minutesDegrees}deg)`;
+            hourHand.style.transform = `rotate(${hoursDegrees}deg)`;
+
+            if (secondsDegrees === 90) {
+                secondHand.style.transition = 'none';
+            } else {
+                secondHand.style.transition = 'transform 0.08s cubic-bezier(0.4, 2.3, 0.6, 1)';
+            }
+
+            const displayHours = hours % 12 || 12;
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+            const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
+            digitalTimeDisplay.textContent = `${displayHours}:${formattedMinutes}:${formattedSeconds} ${ampm}`;
+
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            dateDisplay.textContent = now.toLocaleDateString(undefined, options);
+        }
+
+        themeToggleButton.addEventListener('click', () => {
+            document.body.classList.toggle('light-theme');
+            if (document.body.classList.contains('light-theme')) {
+                localStorage.setItem('clockTheme', 'light');
+                themeToggleButton.textContent = 'Dark Mode';
+            } else {
+                localStorage.setItem('clockTheme', 'dark');
+                themeToggleButton.textContent = 'Light Mode';
+            }
+        });
+
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('clockTheme');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-theme');
+                themeToggleButton.textContent = 'Dark Mode';
+            } else {
+                document.body.classList.remove('light-theme');
+                themeToggleButton.textContent = 'Light Mode';
+            }
+        }
+
+        loadTheme();
+        setClock();
+        setInterval(setClock, 1000);
+
+        // --- ADJUSTED PARALLAX EFFECT ---
+        const maxTilt = 10; // Max tilt in degrees (was 5, increased for more noticeable effect)
+
+        document.addEventListener('mousemove', (e) => {
+            // Only apply global mouse move when not hovering directly over the clock
+            // The CSS :hover will handle its own transform
+            if (!clockElement.matches(':hover')) {
+                const rect = document.body.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const midX = rect.width / 2;
+                const midY = rect.height / 2;
+
+                // Calculate tilt based on mouse position relative to center of viewport
+                // The further from center, the more tilt, up to maxTilt
+                const offsetX = ((x - midX) / midX) * maxTilt;
+                const offsetY = ((y - midY) / midY) * -maxTilt; // Inverted for natural feel
+
+                // Apply the transform. Keep scale(1) so it doesn't interfere with hover scale.
+                clockElement.style.transform = `rotateX(${offsetY}deg) rotateY(${offsetX}deg) scale(1)`;
+            }
+        });
+
+        // Reset tilt when mouse leaves the document or enters the clock (handled by :hover)
+        document.addEventListener('mouseleave', () => {
+             clockElement.style.transform = `rotateX(0deg) rotateY(0deg) scale(1)`;
+        });
+
+        // When mouse enters the clock, we want CSS :hover to take over smoothly.
+        // The `if (!clockElement.matches(':hover'))` in mousemove handles this.
+        // When mouse leaves the clock (but still in document), mousemove will re-apply tilt.
+
+    </script>
+</body>
+</html>
